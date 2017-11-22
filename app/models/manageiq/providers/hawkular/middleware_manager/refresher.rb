@@ -2,6 +2,10 @@ module ManageIQ::Providers::Hawkular
   class MiddlewareManager::Refresher < ManageIQ::Providers::BaseManager::Refresher
     include ::EmsRefresh::Refreshers::EmsRefresherMixin
 
+    def post_process_refresh_classes
+      [ManageIQ::Providers::Hawkular::MiddlewareManager::AlertPostRefresher]
+    end
+
     def preprocess_targets
       @targets_by_ems_id.each do |ems_id, targets|
         if targets.any? { |t| t.kind_of?(ExtManagementSystem) }
