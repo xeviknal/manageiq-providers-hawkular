@@ -21,4 +21,10 @@ FactoryGirl.define do
     )
     responds_to_events 'hawkular_alert'
   end
+
+  factory :miq_alert_mw_server, :parent => :miq_alert,
+    :class => 'ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlert' do
+    options         :notifications => {}
+    db              "MiddlewareServer"
+  end
 end
