@@ -1,8 +1,14 @@
 describe ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet do
   let(:ems)       { FactoryGirl.create(:ems_hawkular, :with_region) }
 
-  let(:servers)    { FactoryGirl.create_list(:middleware_server, servers_count) }
-  let(:servers_count) { 1 }
+  let(:servers)        { FactoryGirl.create_list(:middleware_server, servers_count, server_options) }
+  let(:servers_count)  { 1 }
+  let(:server_options) do
+    {
+      :ems_ref  => '/t;hawkular/f;d22af190e985/r;Local%20DMR~~',
+      :name     => 'Server name'
+    }
+  end
 
   let(:alert_set) do
     FactoryGirl.create(:miq_alert_set_mw_server,
@@ -13,7 +19,7 @@ describe ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet do
   let(:alerts) { FactoryGirl.create_list(:miq_alert_mw_server, 1, alert_options) }
   let(:alert_options) do
     {
-      "description"=>"JVM Non Heap Used > 30% ",
+      "description"=>"JVM Non Heap Used > 30%",
       "options"=> {
         :notifications=> {
           :delay_next_evaluation=>600,
@@ -57,8 +63,8 @@ describe ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet do
           alert   = alerts.first
 
           expect(trigger.id).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}"
-          expect(trigger.name).to eq 'JVM Non Heap Used > 30% '
-          expect(trigger.description).to eq 'JVM Non Heap Used > 30% '
+          expect(trigger.name).to eq 'JVM Non Heap Used > 30%'
+          expect(trigger.description).to eq 'JVM Non Heap Used > 30%'
           expect(trigger.enabled).to eq true
           expect(trigger.type).to eq :GROUP
           expect(trigger.event_type).to eq :EVENT
@@ -78,26 +84,22 @@ describe ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet do
         it 'has an alert structure with one member trigger' do
           trigger = import_hash[:member_triggers].first
           alert   = alerts.first
+          server  = servers.first
 
-          expect(trigger.id).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}"
-          expect(trigger.name).to eq 'JVM Non Heap Used > 30% for Local'
-          expect(trigger.description).to eq 'JVM Non Heap Used > 30% '
-          expect(trigger.enabled).to eq alert.enabled
-          expect(trigger.type).to eq :MEMBER
-          expect(trigger.event_type).to eq :EVENT
-          expect(trigger.severity).to eq 'MEDIUM'
-          expect(trigger.firing_match).to eq :ANY
-          expect(trigger.context).to include({
+          expect(trigger.member_id).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}-#{server.id}"
+          expect(trigger.member_name).to eq "JVM Non Heap Used > 30% for Server name"
+          expect(trigger.member_description).to eq 'JVM Non Heap Used > 30%'
+          expect(trigger.member_context).to include({
             'dataId.hm.type'   => 'gauge',
             'dataId.hm.prefix' => 'hm_g_',
-            'miq.alert_profiles' => '39',
+            'miq.alert_profiles' => alert_set.id.to_s,
             'resource_path'    => "/t;hawkular/f;d22af190e985/r;Local%20DMR~~"
           })
-          expect(trigger.tags).to include({
+          expect(trigger.member_tags).to include({
             'miq.event_type'  => 'hawkular_alert',
             'miq.resource_type' => alert.based_on
           })
-          expect(trigger.dataIdMap).to include({
+          expect(trigger.data_id_map).to include({
             'WildFly Memory Metrics~Heap Max' => "hm_g_MI~R~[d22af190e985/Local DMR~~]~MT~WildFly Memory Metrics~Heap Max",
             'WildFly Memory Metrics~Heap Used' => "hm_g_MI~R~[d22af190e985/Local DMR~~]~MT~WildFly Memory Metrics~Heap Used"
           })
