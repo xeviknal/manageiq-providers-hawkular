@@ -42,6 +42,7 @@ module ManageIQ::Providers
         mw_alert = build_alert(alert)
         group_trigger  = mw_alert.build_or_assign_group_trigger(group_trigger_for(mw_alert))
         condition      = mw_alert.build_condition
+        group_trigger.conditions << condition
         member_trigger = mw_alert.build_member_triggers_for(group_trigger)
 
         group_triggers.append(group_trigger)

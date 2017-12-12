@@ -6,7 +6,9 @@ describe ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet do
   let(:server_options) do
     {
       :ems_ref  => '/t;hawkular/f;d22af190e985/r;Local%20DMR~~',
-      :name     => 'Server name'
+      :name     => 'Server name',
+      :feed     => 'feed-id',
+      :nativeid => 'native-id'
     }
   end
 
@@ -32,7 +34,7 @@ describe ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet do
       "enabled"=>true,
       "read_only"=>nil,
       "hash_expression"=> {
-        :eval_method=>"mw_non_heap_used",
+        :eval_method=>"mw_heap_used",
         :mode=>"internal",
         :options=> {
           :value_mw_greater_than=>"30",
@@ -86,6 +88,7 @@ describe ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet do
           alert   = alerts.first
           server  = servers.first
 
+          expect(trigger.group_id).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}"
           expect(trigger.member_id).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}-#{server.id}"
           expect(trigger.member_name).to eq "JVM Non Heap Used > 30% for Server name"
           expect(trigger.member_description).to eq 'JVM Non Heap Used > 30%'
@@ -100,13 +103,13 @@ describe ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet do
             'miq.resource_type' => alert.based_on
           })
           expect(trigger.data_id_map).to include({
-            'WildFly Memory Metrics~Heap Max' => "hm_g_MI~R~[d22af190e985/Local DMR~~]~MT~WildFly Memory Metrics~Heap Max",
-            'WildFly Memory Metrics~Heap Used' => "hm_g_MI~R~[d22af190e985/Local DMR~~]~MT~WildFly Memory Metrics~Heap Used"
+            'WildFly Memory Metrics~Heap Max'  => "hm_g_MI~R~[feed-id/native-id]~MT~WildFly Memory Metrics~Heap Max",
+            'WildFly Memory Metrics~Heap Used' => "hm_g_MI~R~[feed-id/native-id]~MT~WildFly Memory Metrics~Heap Used"
           })
-          expect(trigger.member_of).to eq 'MiQ-region-7b5e3af1-ems-0f8c05f7-a96d-42af-bbac-3ae27a5516d2-alert-67'
         end
 
         it 'has an alert structure with one group condition' do
+          expect(import_hash[:conditions].count).to eq 1
         end
       end
 

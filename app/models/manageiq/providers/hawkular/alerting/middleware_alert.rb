@@ -1,5 +1,5 @@
-module ManageIQ::Providers
-  class Hawkular::Alerting::MiddlewareAlert < MiqAlert
+module ManageIQ::Providers::Hawkular::Alerting
+  class MiddlewareAlert < MiqAlert
     attr_accessor :ems, :alert_set, :eval_method
 
     FIRING_MATCH_ANY = {
@@ -28,7 +28,7 @@ module ManageIQ::Providers
     end
 
     def build_condition
-      []
+      ConditionBuilder.for(self).build
     end
 
     private
@@ -115,7 +115,8 @@ module ManageIQ::Providers
       group_trigger.context ||= {}
       prefix = group_trigger.context['dataId.hm.prefix'] || ''
 
-      group_trigger.conditions.each do |condition|
+      # TODO: ConditionBuilder::JVM is one condition with multiple condition within
+      group_trigger.conditions.first.conditions.each do |condition|
         id_prefix = "#{prefix}MI~R~[#{resource.feed}/#{resource.nativeid}]~MT~"
 
         data_id_map[condition.data_id] = "#{id_prefix}#{condition.data_id}"
