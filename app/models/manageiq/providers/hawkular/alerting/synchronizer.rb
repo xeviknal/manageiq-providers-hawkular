@@ -8,9 +8,17 @@ module ManageIQ::Providers
       self.refresh_start_time = ems_refresh_start_time
     end
 
+    def empty?
+      import_hash.empty? ||
+        import_hash.eql?(
+          :triggers         => [],
+          :groupMembersInfo => []
+        )
+    end
+
     def perform
       build_alert_structure
-      #import_alert_structure
+      import_alert_structure
     end
 
     private
@@ -27,6 +35,12 @@ module ManageIQ::Providers
 
     def append(alert_set)
       import_hash.merge!(alert_set)
+    end
+
+    def import_alert_structure
+      return if empty?
+
+      ems.alerts_client.bulk_import_triggers(import_hash)
     end
   end
 end
