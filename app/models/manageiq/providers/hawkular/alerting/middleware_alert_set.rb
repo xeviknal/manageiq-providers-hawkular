@@ -1,6 +1,6 @@
 module ManageIQ::Providers
   class Hawkular::Alerting::MiddlewareAlertSet < MiqAlertSet
-    attr_accessor :ems, :group_triggers, :member_triggers, :conditions
+    attr_accessor :ems, :group_triggers, :member_triggers, :conditions, :alert_set
 
     def initialize
       super
@@ -9,8 +9,9 @@ module ManageIQ::Providers
       self.conditions       = []
     end
 
-    def to_hawkular_for(ems)
+    def to_hawkular_for(ems, alert_set)
       self.ems = ems
+      self.alert_set = alert_set
       build_structure
       build_output
     end
@@ -60,9 +61,8 @@ module ManageIQ::Providers
 
     def build_output
       {
-        :group_triggers  => group_triggers,
-        :member_triggers => member_triggers.flatten,
-        :conditions      => conditions
+        :triggers         => group_triggers_to_h,
+        :groupMembersInfo => member_triggers_to_h
       }
     end
 
@@ -73,6 +73,23 @@ module ManageIQ::Providers
                                "alert_set" => self)
       )
       mw_alert
+    end
+
+    def tags
+      alert_set.tags
+    end
+
+    def group_triggers_to_h
+      group_triggers.map do |group_trigger|
+        full_trigger = {}
+        full_trigger[:trigger]    = group_trigger.to_h
+        full_trigger[:conditions] = group_trigger.conditions.first.conditions.map(&:to_h)
+        full_trigger
+      end
+    end
+
+    def member_triggers_to_h
+      member_triggers.flatten.map(&:to_h)
     end
   end
 end

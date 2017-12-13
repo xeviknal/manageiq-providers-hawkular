@@ -28,10 +28,14 @@ module ManageIQ::Providers
     private
 
     def build_alert_structure
-      MiqAlertSet.where(:mode => 'MiddlewareServer').find_each do |alert_set|
+      middleware_alert_set.find_each do |alert_set|
         mw_alert_set = build_alert_set(alert_set)
-        append(mw_alert_set.to_hawkular)
+        append(mw_alert_set.to_hawkular_for(ems, alert_set))
       end
+    end
+
+    def middleware_alert_set
+      MiqAlertSet.where(:mode => 'MiddlewareServer')
     end
 
     def append(alert_set)
