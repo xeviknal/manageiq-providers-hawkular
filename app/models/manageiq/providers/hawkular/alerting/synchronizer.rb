@@ -29,23 +29,16 @@ module ManageIQ::Providers
 
     def build_alert_structure
       middleware_alert_set.find_each do |alert_set|
-        mw_alert_set = build_alert_set(alert_set)
-        append(mw_alert_set.to_hawkular_for(ems, alert_set))
+        append(Hawkular::Alerting::AlertSetBuilder.new(ems, alert_set).build)
       end
     end
 
     def middleware_alert_set
-      MiqAlertSet.where(:mode => 'MiddlewareServer')
+      MiqAlertSet.on_mode('MiddlewareServer')
     end
 
     def append(alert_set)
       import_hash.merge!(alert_set)
-    end
-
-    def build_alert_set(alert_set)
-      mw_alert_set = ManageIQ::Providers::Hawkular::Alerting::MiddlewareAlertSet.new
-      mw_alert_set.assign_attributes(alert_set.attributes)
-      mw_alert_set
     end
 
     def triggers_by_type(type)
