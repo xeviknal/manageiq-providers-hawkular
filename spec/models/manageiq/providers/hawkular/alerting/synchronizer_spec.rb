@@ -1,11 +1,55 @@
 describe ManageIQ::Providers::Hawkular::Alerting::Synchronizer do
   let(:sync)       { described_class.new(ems, Time.current) }
-  let(:ems)        { FactoryGirl.create(:ems_middleware) }
-  let(:server)     { FactoryGirl.create(:middleware_server) }
-  let(:alerts)     { FactoryGirl.create_list(:miq_alert_mw_server, 1) }
-  let(:alert_sets) { FactoryGirl.create(:miq_alert_set_mw_server, alerts: alerts) }
+  let(:ems)        { FactoryGirl.create(:ems_hawkular, :with_region) }
+
+  let(:servers)    { FactoryGirl.create_list(:middleware_server, 1, server_options) }
+  let(:server_options) do
+    {
+      :ems_ref  => '/t;hawkular/f;d22af190e985/r;Local%20DMR~~',
+      :name     => 'Server name',
+      :feed     => 'feed-id',
+      :nativeid => 'native-id'
+    }
+  end
+
+  let(:alert_sets) { FactoryGirl.create_list(:miq_alert_set_mw, 1, alerts: alerts, tags: tags) }
+  let(:alerts)     { FactoryGirl.create_list(:miq_alert_middleware, 1, alert_options) }
+  let(:alert_options) do
+    {
+      "description"=>"JVM Non Heap Used > 30%",
+      "options"=> {
+        :notifications=> {
+          :delay_next_evaluation=>600,
+          :evm_event=> {}
+        }
+      },
+      "db"=>"MiddlewareServer",
+      "miq_expression"=>nil,
+      "responds_to_events"=>"hawkular_alert",
+      "enabled"=>true,
+      "read_only"=>nil,
+      "hash_expression"=> {
+        :eval_method=>"mw_heap_used",
+        :mode=>"internal",
+        :options=> {
+          :value_mw_greater_than=>"30",
+          :value_mw_less_than=>"0"
+        }
+      },
+      "severity"=>"warning"
+    }
+  end
+
+  let(:tags) do
+    servers.map do |server|
+      Tag.new(:name => "/miq_alert_set/assigned_to/middleware_server/id/#{server.id}")
+    end
+  end
 
   describe '.perform' do
+    let(:group_triggers)  { sync.import_hash[:triggers] }
+    let(:member_triggers) { sync.import_hash[:groupMembersInfo] }
+
     before { alert_sets }
     before { sync.perform }
 
@@ -15,17 +59,17 @@ describe ManageIQ::Providers::Hawkular::Alerting::Synchronizer do
           subject { sync.import_hash }
 
           it { is_expected.not_to be_nil }
-          it { expect(sync.triggers.count).to eq 2 }
-          it { expect(sync.group_members.count).to eq 1 }
-          it { expect(sync.group_triggers.count).to eq 1 }
-          it { expect(subject[:conditions].count).to eq 1 }
+          it { expect(member_triggers.count).to eq 1 }
+          it { expect(group_triggers.count).to eq 1 }
+          it { expect(group_triggers.first[:conditions].count).to eq 2 }
 
           it 'has an alert structure with one group trigger' do
-            trigger = sync.group_triggers.first
-            alert   = alerts.first
+            full_trigger = group_triggers.first
+            trigger      = full_trigger[:trigger]
+            alert_set    = alert_sets.first
+            alert        = alerts.first
 
-            expect(trigger['tenantId']).to eq 'hawkular'
-            expect(trigger['id']).to eq "#{miq-region}-#{ems.ref}-#{alert.id}"
+            expect(trigger["id"]).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}"
             expect(trigger['name']).to eq alert.name
             expect(trigger['description']).to eq alert.name
             expect(trigger['enabled']).to eq alert.enabled
@@ -36,7 +80,7 @@ describe ManageIQ::Providers::Hawkular::Alerting::Synchronizer do
             expect(trigger['context']).to include({
               'dataId.hm.type'     => 'gauge',
               'dataId.hm.prefix'   => 'hm_g_',
-              'miq.alert_profiles' => '39'
+              'miq.alert_profiles' => alert_set.id.to_s
             })
             expect(trigger['tags']).to include({
               'miq.event_type'  => 'hawkular_alert',
@@ -45,34 +89,29 @@ describe ManageIQ::Providers::Hawkular::Alerting::Synchronizer do
           end
 
           it 'has an alert structure with one member trigger' do
-            trigger = sync.group_members.first
-            alert   = alerts.first
+            trigger   = member_triggers.first
+            alert     = alerts.first
+            alert_set = alert_sets.first
+            server    = servers.first
 
-            expect(trigger['tenantId']).to eq 'hawkular'
-            expect(trigger['id']).to eq "#{miq-region}-#{ems.ref}-#{alert.id}"
-            expect(trigger['name']).to eq alert.name
-            expect(trigger['description']).to eq alert.name
-            expect(trigger['enabled']).to eq alert.enabled
-            expect(trigger['type']).to eq :MEMBER
-            expect(trigger['eventType']).to eq :EVENT
-            expect(trigger['severity']).to eq 'MEDIUM'
-            expect(trigger['firingMatch']).to eq :ANY
-            expect(trigger['autoResolveMatch']).to eq 'ALL'
-            expect(trigger['context']).to include({
+            expect(trigger['groupId']).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}"
+            expect(trigger['memberId']).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}-#{server.id}"
+            expect(trigger['memberName']).to eq 'JVM Non Heap Used > 30% for Server name'
+            expect(trigger['memberDescription']).to eq 'JVM Non Heap Used > 30%'
+            expect(trigger['memberContext']).to include({
               'dataId.hm.type'   => 'gauge',
               'dataId.hm.prefix' => 'hm_g_',
-              'miq.alert_profiles' => '39',
+              'miq.alert_profiles' => alert_set.id.to_s,
               'resource_path'    => "/t;hawkular/f;d22af190e985/r;Local%20DMR~~"
             })
-            expect(trigger['tags']).to include({
+            expect(trigger['memberTags']).to include({
               'miq.event_type'  => 'hawkular_alert',
               'miq.resource_type' => alert.based_on
             })
             expect(trigger['dataIdMap']).to include({
-              'WildFly Memory Metrics~Heap Max' => "hm_g_MI~R~[d22af190e985/Local DMR~~]~MT~WildFly Memory Metrics~Heap Max",
-              'WildFly Memory Metrics~Heap Used' => "hm_g_MI~R~[d22af190e985/Local DMR~~]~MT~WildFly Memory Metrics~Heap Used"
+              'WildFly Memory Metrics~Heap Max' => "hm_g_MI~R~[feed-id/native-id]~MT~WildFly Memory Metrics~Heap Max",
+              'WildFly Memory Metrics~Heap Used' => "hm_g_MI~R~[feed-id/native-id]~MT~WildFly Memory Metrics~Heap Used"
             })
-            expect(trigger['memberOf']).to eq 'MiQ-region-7b5e3af1-ems-0f8c05f7-a96d-42af-bbac-3ae27a5516d2-alert-67'
           end
 
           it 'has an alert structure with one group condition' do
@@ -80,10 +119,13 @@ describe ManageIQ::Providers::Hawkular::Alerting::Synchronizer do
         end
 
         context 'and hasn\'t got any middleware server assigned' do
-          let(:servers) { nil }
+          let(:servers) { [] }
 
           it 'build an empty structure' do
-            expect(sync.import_hash).to be_empty
+            expect(sync.import_hash).to include({
+              :triggers => [],
+              :groupMembersInfo => []
+            })
           end
         end
       end
@@ -92,83 +134,20 @@ describe ManageIQ::Providers::Hawkular::Alerting::Synchronizer do
         let(:alerts) { [] }
 
         it 'build an empty structure' do
-          expect(sync.import_hash).to be_empty
+          expect(sync.import_hash).to include({
+            :triggers => [],
+            :groupMembersInfo => []
+          })
         end
       end
     end
 
     context 'when there is no alert sets' do
-      let(:alert_sets) { nil }
+      let(:alert_sets) { [] }
 
       it 'build an empty structure' do
         expect(sync.import_hash).to be_empty
       end
-    end
-  end
-
-  describe '.group_triggers' do
-    let(:hash_test) do
-      {
-        :triggers => [
-          {
-            'name'        => 'alert_profile-1',
-            'description' => 'alert_profile',
-            'enabled'     => true,
-            'type'        => :GROUP,
-          },
-          {
-            'name'        => 'alert_profile-2',
-            'description' => 'alert_profile',
-            'enabled'     => true,
-            'type'        => :GROUP,
-          },
-          {
-            'name'        => 'alert_profile-2',
-            'description' => 'alert_profile',
-            'enabled'     => true,
-            'type'        => :MEMBER,
-          }
-        ]
-      }
-    end
-
-    before { allow(sync).to receive(:import_hash).and_return(hash_test) }
-
-    it 'returns triggers where type is :GROUP' do
-      expect(sync.group_triggers.count).to eq 2
-    end
-  end
-
-  describe '.group_members' do
-    let(:hash_test) do
-      {
-        :triggers => [
-          {
-            'name'        => 'alert_profile-1',
-            'description' => 'alert_profile',
-            'enabled'     => true,
-            'type'        => :GROUP,
-          },
-          {
-            'name'        => 'alert_profile-2',
-            'description' => 'alert_profile',
-            'enabled'     => true,
-            'type'        => :GROUP,
-          },
-          {
-            'name'        => 'alert_profile-2',
-            'description' => 'alert_profile',
-            'enabled'     => true,
-            'type'        => :MEMBER,
-          }
-        ]
-      }
-    end
-
-    before { allow(sync).to receive(:import_hash).and_return(hash_test) }
-
-    it 'returns triggers where type is :GROUP' do
-      expect(sync.group_members.count).to eq 1
     end
   end
 end

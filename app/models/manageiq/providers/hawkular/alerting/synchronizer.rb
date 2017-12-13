@@ -13,18 +13,6 @@ module ManageIQ::Providers
       #import_alert_structure
     end
 
-    def triggers
-      import_hash[:triggers]
-    end
-
-    def group_triggers
-      triggers_by_type(:GROUP)
-    end
-
-    def group_members
-      triggers_by_type(:MEMBER)
-    end
-
     private
 
     def build_alert_structure
@@ -39,10 +27,6 @@ module ManageIQ::Providers
 
     def append(alert_set)
       import_hash.merge!(alert_set)
-    end
-
-    def triggers_by_type(type)
-      import_hash[:triggers].find_all { |trigger| trigger['type'] == type }
     end
   end
 end

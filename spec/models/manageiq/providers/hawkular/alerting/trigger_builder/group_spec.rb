@@ -2,8 +2,8 @@ module ManageIQ::Providers::Hawkular::Alerting
   describe TriggerBuilder::Group do
     let(:builder)       { described_class.new(ems, alert_set, alert, group_trigger) }
     let(:ems)           { FactoryGirl.create(:ems_hawkular, :with_region) }
-    let(:alert)         { FactoryGirl.create(:miq_alert_mw_server, alert_options) }
-    let(:alert_set)     { FactoryGirl.create(:miq_alert_set_mw) }
+    let(:alert)         { FactoryGirl.create(:miq_alert_middleware, alert_options) }
+    let(:alert_set)     { FactoryGirl.create(:miq_alert_set) }
     let(:group_trigger) { nil }
     let(:alert_options) do
       {
