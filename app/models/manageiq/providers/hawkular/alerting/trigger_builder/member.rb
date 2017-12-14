@@ -1,6 +1,5 @@
 module ManageIQ::Providers::Hawkular::Alerting
   class TriggerBuilder::Member < TriggerBuilder::Base
-
     def build
       alert_set.assigned_resources.map do |resource|
         build_member_trigger_for(resource, group_trigger)

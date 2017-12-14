@@ -1,6 +1,5 @@
 module ManageIQ::Providers::Hawkular::Alerting
   class TriggerBuilder::Group < TriggerBuilder::Base
-
     FIRING_MATCH_ANY = {
       "mw_heap_used"     => :ANY,
       "mw_non_heap_used" => :ANY,

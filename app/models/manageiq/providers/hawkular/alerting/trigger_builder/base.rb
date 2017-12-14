@@ -3,7 +3,7 @@ module ManageIQ::Providers::Hawkular::Alerting
     attr_accessor :ems, :alert_set, :alert, :group_trigger, :resource
 
     delegate :id, :enabled, :description, :severity,
-      :hash_expression, :based_on, to: :alert
+             :hash_expression, :based_on, :to => :alert
 
     def initialize(ems, alert_set, alert, group_trigger = nil, resource = nil)
       self.ems           = ems

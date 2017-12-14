@@ -11,7 +11,7 @@ module ManageIQ::Providers::Hawkular
         if targets.any? { |t| t.kind_of?(ExtManagementSystem) }
           # If the EMS is in the list of targets, full graph refresh is done.
           ems = @ems_by_ems_id[ems_id]
-          _log.info "Defaulting to full refresh for EMS: [#{ems.name}], id: [#{ems.id}]." if targets.length > 1
+          _log.info("Defaulting to full refresh for EMS: [#{ems.name}], id: [#{ems.id}].") if targets.length > 1
           targets.clear << ems
         elsif targets.any?
           # Assuming availabilities are being refreshed (since there is no other

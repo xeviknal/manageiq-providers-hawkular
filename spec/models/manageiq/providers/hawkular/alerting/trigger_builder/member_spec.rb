@@ -1,32 +1,32 @@
 module ManageIQ::Providers::Hawkular::Alerting
   describe TriggerBuilder::Member do
     let(:builder)   { described_class.new(ems, alert_set, alert, group_trigger) }
-    let(:ems)   { FactoryGirl.create(:ems_hawkular, :with_region) }
-    let(:alert) { FactoryGirl.create(:miq_alert_middleware, alert_options) }
+    let(:ems)       { FactoryGirl.create(:ems_hawkular, :with_region) }
+    let(:alert)     { FactoryGirl.create(:miq_alert_middleware, alert_options) }
     let(:alert_set) { FactoryGirl.create(:miq_alert_set) }
     let(:alert_options) do
       {
-        "description"=>"JVM Non Heap Used > 30% ",
-        "options"=> {
-          :notifications=> {
-            :delay_next_evaluation=>600,
-            :evm_event=> {}
+        "description"        => "JVM Non Heap Used > 30% ",
+        "db"                 => "MiddlewareServer",
+        "miq_expression"     => nil,
+        "responds_to_events" => "hawkular_alert",
+        "enabled"            => true,
+        "read_only"          => nil,
+        "severity"           => "warning",
+        "options"            => {
+          :notifications => {
+            :evm_event             => {},
+            :delay_next_evaluation => 600
           }
         },
-        "db"=>"MiddlewareServer",
-        "miq_expression"=>nil,
-        "responds_to_events"=>"hawkular_alert",
-        "enabled"=>true,
-        "read_only"=>nil,
-        "hash_expression"=> {
-          :eval_method=>"mw_non_heap_used",
-          :mode=>"internal",
-          :options=> {
-            :value_mw_greater_than=>"30",
-            :value_mw_less_than=>"0"
+        "hash_expression"    => {
+          :eval_method => "mw_non_heap_used",
+          :mode        => "internal",
+          :options     => {
+            :value_mw_greater_than => "30",
+            :value_mw_less_than    => "0"
           }
-        },
-        "severity"=>"warning"
+        }
       }
     end
 
@@ -42,7 +42,7 @@ module ManageIQ::Providers::Hawkular::Alerting
       end
 
       let(:trigger) { builder.build.first }
-      let(:group_trigger)  do
+      let(:group_trigger) do
         trigger = ::Hawkular::Alerts::Trigger.new({})
         trigger.id      = 123
         trigger.name    = 'Trigger name'
@@ -64,17 +64,21 @@ module ManageIQ::Providers::Hawkular::Alerting
       it { expect(trigger.member_id).to eq "123-#{servers.first.id}" }
       it { expect(trigger.member_name).to eq 'Trigger name for Server name' }
       it { expect(trigger.member_description).to eq 'Trigger name' }
-      it { expect(trigger.member_context).to include({
-              'dataId.hm.type'     => 'gauge',
-              'dataId.hm.prefix'   => 'hm_g_',
-              'miq.alert_profiles' => alert_set.id.to_s
-            }) }
+      it 'returns a trigger with context with type, prefix and alert_profiles' do
+        expect(trigger.member_context).to include(
+          'dataId.hm.type'     => 'gauge',
+          'dataId.hm.prefix'   => 'hm_g_',
+          'miq.alert_profiles' => alert_set.id.to_s
+        )
+      end
 
       context 'when trigger has a condition' do
-        it { expect(trigger.data_id_map).to include({
-          'WildFly Memory Metrics~Heap Max'  => 'hm_g_MI~R~[feed-id/native-id]~MT~WildFly Memory Metrics~Heap Max',
-          'WildFly Memory Metrics~Heap Used' => 'hm_g_MI~R~[feed-id/native-id]~MT~WildFly Memory Metrics~Heap Used'
-        }) }
+        it 'with two entries in data id map' do
+          expect(trigger.data_id_map).to include(
+            'WildFly Memory Metrics~Heap Max'  => 'hm_g_MI~R~[feed-id/native-id]~MT~WildFly Memory Metrics~Heap Max',
+            'WildFly Memory Metrics~Heap Used' => 'hm_g_MI~R~[feed-id/native-id]~MT~WildFly Memory Metrics~Heap Used'
+          )
+        end
       end
 
       context 'when trigger hasn\'t got any condition' do

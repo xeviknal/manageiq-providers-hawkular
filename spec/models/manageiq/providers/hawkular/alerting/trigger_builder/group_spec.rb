@@ -7,27 +7,27 @@ module ManageIQ::Providers::Hawkular::Alerting
     let(:group_trigger) { nil }
     let(:alert_options) do
       {
-        "description"=>"JVM Non Heap Used > 30% ",
-        "options"=> {
-          :notifications=> {
-            :delay_next_evaluation=>600,
-            :evm_event=> {}
+        "description"        => "JVM Non Heap Used > 30%",
+        "db"                 => "MiddlewareServer",
+        "miq_expression"     => nil,
+        "responds_to_events" => "hawkular_alert",
+        "enabled"            => true,
+        "read_only"          => nil,
+        "severity"           => "warning",
+        "options"            => {
+          :notifications => {
+            :evm_event             => {},
+            :delay_next_evaluation => 600
           }
         },
-        "db"=>"MiddlewareServer",
-        "miq_expression"=>nil,
-        "responds_to_events"=>"hawkular_alert",
-        "enabled"=>true,
-        "read_only"=>nil,
-        "hash_expression"=> {
-          :eval_method=>"mw_non_heap_used",
-          :mode=>"internal",
-          :options=> {
-            :value_mw_greater_than=>"30",
-            :value_mw_less_than=>"0"
+        "hash_expression"    => {
+          :eval_method => "mw_non_heap_used",
+          :mode        => "internal",
+          :options     => {
+            :value_mw_greater_than => "30",
+            :value_mw_less_than    => "0"
           }
-        },
-        "severity"=>"warning"
+        }
       }
     end
 
@@ -38,23 +38,27 @@ module ManageIQ::Providers::Hawkular::Alerting
         let(:group_trigger) { nil }
 
         it { expect(trigger.id).to eq "MiQ-region-#{ems.miq_region.guid}-ems-#{ems.guid}-alert-#{alert.id}" }
-        it { expect(trigger.name).to eq 'JVM Non Heap Used > 30% ' }
-        it { expect(trigger.description).to eq 'JVM Non Heap Used > 30% ' }
+        it { expect(trigger.name).to eq 'JVM Non Heap Used > 30%' }
+        it { expect(trigger.description).to eq 'JVM Non Heap Used > 30%' }
         it { expect(trigger.enabled).to eq true }
         it { expect(trigger.type).to eq :GROUP }
         it { expect(trigger.event_type).to eq :EVENT }
         it { expect(trigger.severity).to eq 'MEDIUM' }
         it { expect(trigger.firing_match).to eq :ANY }
-        it { expect(trigger.context).to include({
-          'dataId.hm.type'     => 'gauge',
-          'dataId.hm.prefix'   => 'hm_g_',
-          'miq.alert_profiles' => alert_set.id.to_s
-        }) }
+        it 'returns a trigger with type, prefix and alert_profiles context' do
+          expect(trigger.context).to include(
+            'dataId.hm.type'     => 'gauge',
+            'dataId.hm.prefix'   => 'hm_g_',
+            'miq.alert_profiles' => alert_set.id.to_s
+          )
+        end
 
-        it { expect(trigger.tags).to include({
-          'miq.event_type'  => 'hawkular_alert',
-          'miq.resource_type' => 'Middleware Server'
-        }) }
+        it 'returns a trigger with tags event_type and resource_type' do
+          expect(trigger.tags).to include(
+            'miq.event_type'    => 'hawkular_alert',
+            'miq.resource_type' => 'Middleware Server'
+          )
+        end
       end
 
       context 'when there is already created a group_trigger for that alert' do
@@ -166,12 +170,12 @@ module ManageIQ::Providers::Hawkular::Alerting
 
       context 'when eval_method is "mw_accumulated_gc_duration"' do
         let(:eval_method) { 'mw_accumulated_gc_duration' }
-        it { is_expected.to include({ 'dataId.hm.type' => 'counter', 'dataId.hm.prefix' => 'hm_c_' }) }
+        it { is_expected.to include('dataId.hm.type' => 'counter', 'dataId.hm.prefix' => 'hm_c_') }
       end
 
       context 'when eval_method is different to "mw_accumulated_gc_duration"' do
         let(:eval_method) { 'random' }
-        it { is_expected.to include({ 'dataId.hm.type' => 'gauge', 'dataId.hm.prefix' => 'hm_g_' }) }
+        it { is_expected.to include('dataId.hm.type' => 'gauge', 'dataId.hm.prefix' => 'hm_g_') }
       end
     end
   end
